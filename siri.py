@@ -31,12 +31,12 @@ def construct_request(stop_ids):
     monitoring_requests = "\n".join(
                 """<siri:StopMonitoringRequest version="IL2.7" xsi:type="siri:StopMonitoringRequestStructure">
                     <siri:RequestTimestamp>{timestamp}</siri:RequestTimestamp>
-                    <siri:MessageIdentifier xsi:type="siri:MessageQualifierStructure">0</siri:MessageIdentifier>
+                    <siri:MessageIdentifier xsi:type="siri:MessageQualifierStructure">{message_id}</siri:MessageIdentifier>
                     <siri:PreviewInterval>PT1H</siri:PreviewInterval>
                     <siri:MonitoringRef xsi:type="siri:MonitoringRefStructure">{stop_id}</siri:MonitoringRef>
                     <siri:MaximumStopVisits>100</siri:MaximumStopVisits>
-                </siri:StopMonitoringRequest>""".format(timestamp=timestamp, stop_id=stop_id)
-            for stop_id in stop_ids)
+                </siri:StopMonitoringRequest>""".format(timestamp=timestamp, stop_id=stop_id, message_id=i)
+            for i, stop_id in enumerate(stop_ids))
             
     return """
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/" xmlns:acsb="http://www.ifopt.org.uk/acsb" xmlns:datex2="http://datex2.eu/schema/1_0/1_0" xmlns:ifopt="http://www.ifopt.org.uk/ifopt" xmlns:siri="http://www.siri.org.uk/siri" xmlns:siriWS="http://new.webservice.namespace" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="./siri">
@@ -60,14 +60,18 @@ SOAP_ADDRESS = SERVER + "Siri/SiriServices"
 
 def send_request():
     request_data = construct_request(line14_stops_to_central)
-    #print(request_data)
     response = requests.post(SOAP_ADDRESS, data=request_data)
-    #print("="*30)
-    #print(response.text)
+    response.raise_for_status()
+    return response.text
+
+def save_response(response_text):
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     output_filename = r"c:\temp\siri\response_" + timestamp + ".xml"
-    open(output_filename, "wb").write(response.text.encode("utf8"))
-    print("Result saved to: " + output_filename)
+    open(output_filename, "wb").write(response_text.encode("utf8"))
+    
+def main():
+    response_text = send_request()
+    save_response(response_text)
 
 if __name__ == "__main__":
-    send_request()
+    main()
