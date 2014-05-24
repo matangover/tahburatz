@@ -1,6 +1,3 @@
-import pysimplesoap
-from pysimplesoap.client import SoapClient
-from pysimplesoap.simplexml import SimpleXMLElement
 import datetime
 import uuid
 import requests
@@ -25,8 +22,6 @@ line14_route_ids = [
 12836,3,14,קניון מלחה/א''ס מכבי-ירושלים<->תחנה מרכזית/יפו-ירושלים-2א,15014-2-א,3,
 12837,3,14,קניון מלחה/א''ס מכבי-ירושלים<->תחנה מרכזית/יפו-ירושלים-2ב,15014-2-ב,3,
 """
-
-#line14 
 
 def get_timestamp():
     return datetime.datetime.utcnow().isoformat()
@@ -62,16 +57,6 @@ def construct_request(stop_ids):
 #SERVER = "http://siri.motrealtime.co.il:8081/"
 SERVER = "http://127.0.0.1:5000/"
 SOAP_ADDRESS = SERVER + "Siri/SiriServices"
-def send_request_soap():
-    soap_address = SERVER + "Siri/SiriServices"
-    client = SoapClient(
-        location = soap_address,
-        action = soap_address,
-        namespace = soap_address,
-        soap_ns='soap', trace = True, ns = False)
-    params = SimpleXMLElement(construct_request()) # manually make request msg
-    response = client.call('GetStopMonitoringService', params)
-    return response
 
 def send_request():
     request_data = construct_request(line14_stops_to_central)
