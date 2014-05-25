@@ -1,7 +1,7 @@
 import datetime
 import uuid
 import requests
-from config import DEV_KEY
+from config import DEV_KEY, SERVER
 
 #line14_stops_to_malha = ['10789', '9181', '10515', '10323', '9621', '9695', '9342', '34238', '10768', '34268', '9543', '9896', '11604', '9824', '9825', '9408', '9394', '9401', '9405', '11624', '9646', '9585', '9438', '9397', '9398', '9384', '9385', '9584', '9375', '9372', '10779', '9808', '10108', '35302', '11725', '11813', '10177']
 #line14_stops_to_central = ["10177","10319","10062","9809","9593","9324","9373","9377","9381","9382","9458","9399","9603","9402","9405","9396","9620","10012","10739","9395","9822","9545","11847","11844","10768","11507","9903","9694","10325","10326","10324","8734","34273","11574"]
@@ -54,8 +54,6 @@ def construct_request(stop_ids):
 </SOAP-ENV:Envelope>
 """.format(timestamp=timestamp, username=DEV_KEY, message_id=uuid.uuid4(), monitoring_requests=monitoring_requests)
 
-#SERVER = "http://siri.motrealtime.co.il:8081/"
-SERVER = "http://127.0.0.1:5000/"
 SOAP_ADDRESS = SERVER + "Siri/SiriServices"
 
 def send_request():
