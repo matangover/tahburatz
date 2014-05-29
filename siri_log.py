@@ -38,7 +38,7 @@ def insert(bus_data):
 def log_siri_info():
     response_text = siri.send_request()
     logging.info("Got response, length: " + str(len(response_text)))
-    siri.save_response(response_text)
+    # siri.save_response(response_text)
     bus_data = parse_siri_response(response_text)
     logging.info("Adding %s new rows" % len(bus_data))
     for data in bus_data:
