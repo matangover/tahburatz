@@ -65,7 +65,10 @@ def parse_siri_response(response_text):
         if vehicle_location is not None:
             longitude = siri_find(vehicle_location, "Longitude").text
             latitude = siri_find(vehicle_location, "Latitude").text
-        origin_aimed_departude_time = siri_find(journey, "OriginAimedDepartureTime").text
+        origin_aimed_departude_time = None
+        origin_aimed_departure_time_element = siri_find(journey, "OriginAimedDepartureTime")
+        if origin_aimed_departure_time_element is not None:
+            origin_aimed_departude_time = origin_aimed_departure_time_element.text
         expected_arrival_time = siri_find(monitored_call, "ExpectedArrivalTime").text
         # if MonitoredCall contains AimedArrivalTime, it's not realtime data - even ExpectedArrivalTime [apparently]
         is_realtime = siri_find(monitored_call, "AimedArrivalTime") is None
