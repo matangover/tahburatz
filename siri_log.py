@@ -1,10 +1,12 @@
 import sqlite3
 import os
 import time
+import datetime
 import logging
 import siri
 import collections
 from xml.etree import ElementTree
+import dateutil.parser
 
 DB_FILENAME = os.path.join(os.path.dirname(__file__), "siri_log.db")
 SECONDS_TO_WAIT = 60
@@ -18,16 +20,24 @@ def create_table():
     c = conn.cursor()
     c.execute("""
     CREATE TABLE realtime_logs (id INTEGER PRIMARY KEY, timestamp datetime default current_timestamp,
-    station_id TEXT, next_bus_time TEXT, aimed_departure TEXT, latitude TEXT, longitude TEXT, line_id TEXT, data_timestamp TEXT, is_realtime BOOLEAN);
+    station_id TEXT, next_bus_time DATETIME, aimed_departure DATETIME, latitude TEXT, longitude TEXT, line_id TEXT, data_timestamp DATETIME, is_realtime BOOLEAN);
     """)
 
     conn.commit()
+    
+    c.execute("""
+    CREATE TABLE realtime_trips (line_id TEXT, aimed_departure TEXT, station_id TEXT,
+    arrival_time DATETIME, data_timestamp TEXT, timestamp datetime default current_timestamp, PRIMARY KEY(line_id, aimed_departure, station_id));
+    """)
+    # TODO: add constraint - unique aimed_departure and station_id
+    conn.commit()
+    
     conn.close()
     conn = None
     
 def connect():
     logging.info("Opening database connection...")
-    return sqlite3.connect(DB_FILENAME)
+    return sqlite3.connect(DB_FILENAME, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
 
 def insert(bus_data):
     cursor.execute("""
@@ -43,9 +53,11 @@ def log_siri_info():
     logging.info("Adding %s new rows" % len(bus_data))
     for data in bus_data:
         insert(data)
+    for data in bus_data:
+        process_stop_data(data)
 
 def parse_siri_response(response_text):
-    lines_filter = siri.line14_route_ids
+    lines_filter = siri.route_ids
     root = ElementTree.fromstring(response_text)
     ns = "http://www.siri.org.uk/siri"
     visits = root.findall(".//{%s}MonitoredStopVisit" % ns)
@@ -76,6 +88,33 @@ def parse_siri_response(response_text):
         data = BusData(stop_code, expected_arrival_time, origin_aimed_departude_time, latitude, longitude, line_id, data_timestamp, is_realtime)
         bus_data.append(data)
     return bus_data
+
+def process_stop_data(data):
+    if not data.is_realtime:
+        return
+    # Don't rely on forecasts for more than 10 minutes ahead
+    if dateutil.parser.parse(data.next_bus_time) - dateutil.parser.parse(data.data_timestamp) > datetime.timedelta(0, 60*10):
+        # This should happen because we're limiting the preview interval to 10 minutes in the request, but check anyway.
+        logging.debug("Found realtime prediction outside limit. Expected arrival time: %s. Data timestamp: %s" % (data.next_bus_time, data.data_timestamp))
+        return
+    cur = conn.cursor()
+    # TODO: convert to stored procedure
+    cur.execute("""
+    SELECT 1 FROM realtime_trips WHERE line_id=? and aimed_departure=? and station_id=?
+    """, (data.line_id, data.aimed_departure, data.station_id))
+    row = cur.fetchone()
+    if row is None:
+        cur.execute("""
+        INSERT INTO realtime_trips(aimed_departure, station_id, arrival_time, line_id, data_timestamp)
+        VALUES(?, ?, ?, ?, ?)""",
+        (data.aimed_departure, data.station_id, data.next_bus_time, data.line_id, data.data_timestamp))
+    else:
+        cur.execute("""
+        UPDATE realtime_trips
+        SET arrival_time=?, data_timestamp=?, timestamp=datetime()
+        WHERE line_id=? AND aimed_departure=? AND station_id=?
+        """, (data.next_bus_time, data.data_timestamp, data.line_id, data.aimed_departure, data.station_id))
+    conn.commit()
 
 def configure_logging():
     logging.basicConfig(filename='siri.log', level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
